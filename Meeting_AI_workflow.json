@@ -1,0 +1,589 @@
+{
+  "name": "Meeting AI",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "meeting-to-actions",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -208,
+        112
+      ],
+      "id": "f49c6dc0-3b1f-419d-8abb-9ba33f838d5b",
+      "name": "Webhook",
+      "webhookId": "414d7c65-c945-4e0e-af29-66465cf23905"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst output = [];\n\nfor (const item of items) {\n  const json = item.json.body || item.json;\n  const { title, transcript } = json;\n\n  if (!title || !transcript || title.trim() === '' || transcript.trim() === '') {\n    // Mark as invalid\n    output.push({\n      json: {\n        ...json,\n        _valid: false,\n        _error: 'Missing title or transcript'\n      }\n    });\n  } else {\n    output.push({\n      json: {\n        ...json,\n        _valid: true\n      }\n    });\n  }\n}\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16,
+        112
+      ],
+      "id": "64f7d899-2562-44d3-b31e-667c1e41edde",
+      "name": "Validate Input"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "7489921c-edef-4b53-961c-629457b7ee09",
+              "leftValue": "={{ $json._valid }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        240,
+        112
+      ],
+      "id": "046a7b62-a8c8-40e7-bec8-311f57a4cca9",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b:free",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        544,
+        80
+      ],
+      "id": "888ff3f8-ed67-4b49-b906-e63f6d088d6f",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "iFTvKTGgnvs0aSZz",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=title: {{ $json.title }}\ndate: {{ $json.date }}\nattendees: {{ $json.attendees }}\ntranscript: {{ $json.transcript }}",
+        "options": {
+          "systemMessage": "You are a meeting assistant that extracts structured data from meeting transcripts.\n\nYour task:\n1. Read the meeting title, date, attendees, and transcript.\n2. Extract:\n   - summary: short summary (2–4 sentences)\n   - decisions: list of key decisions made\n   - action_items: list of action items with:\n       - title: short action title\n       - description: 1–2 sentences\n       - owner: person name or null if not mentioned\n       - due_date: date string or null if not mentioned\n       - priority: \"low\", \"medium\", or \"high\" (infer from context)\n       - status: \"pending\"\n   - open_questions: unresolved questions\n   - next_steps: immediate next steps\n   - risks_blockers: risks or blockers mentioned\n\nReturn ONLY valid JSON in this exact schema:\n{\n  \"summary\": \"string\",\n  \"decisions\": [{\"title\": \"string\", \"owner\": \"string|null\"}],\n  \"action_items\": [\n    {\n      \"title\": \"string\",\n      \"description\": \"string\",\n      \"owner\": \"string|null\",\n      \"due_date\": \"string|null\",\n      \"priority\": \"low|medium|high\",\n      \"status\": \"pending\"\n    }\n  ],\n  \"open_questions\": [\"string\"],\n  \"next_steps\": [\"string\"],\n  \"risks_blockers\": [\"string\"]\n}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        464,
+        -144
+      ],
+      "id": "c0d1b34e-c774-4cd8-bf3a-fe7367977112",
+      "name": "Extract Meeting Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "const meetingData = $('Validate Input').first().json;\nconst item = $('Map').first();\nconst output = [];\n\n  const json = item.json.output;\n  const { title, date, attendees } = meetingData;\n\n  const meetingId = `M-${date || 'unknown'}-${Math.floor(Math.random()*10000)}`;\n\n  const actions = json.action_items || [];\n  const normalizedActions = actions.map((a, i) => ({\n    id: `AI-${String(i+1).padStart(3, '0')}`,\n    meeting_id: meetingId,\n    meeting_title: title,\n    meeting_date: date,\n    title: a.title || 'Untitled action',\n    description: a.description || '',\n    owner: a.owner || null,\n    due_date: a.due_date || null,\n    priority: ['low','medium','high'].includes(a.priority) ? a.priority : 'medium',\n    status: a.status || 'pending'\n  }));\n\n  output.push({\n    json: {\n      ...json,\n      meeting_id: meetingId,\n      action_items: normalizedActions\n    }\n  });\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        -48
+      ],
+      "id": "5ce68fcf-f53f-45ad-bdcc-2dacd39e862d",
+      "name": "Normalize Action Items"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"error\": \"Invalid input\",\n  \"message\": \"Title and transcript are required.\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        528,
+        256
+      ],
+      "id": "aa42889a-371a-443b-a6d5-641e2bf09529",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1e669ad-7468-4751-9479-b1e4b5dd0149",
+              "name": "output",
+              "value": "={{ $json.output }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        816,
+        -48
+      ],
+      "id": "e9d61189-3d0b-4d9c-8a55-9181a3b420ef",
+      "name": "Map"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "S568bqfSmxXWdFhm",
+          "mode": "list",
+          "cachedResultName": "meetings_test",
+          "cachedResultUrl": "/projects/NUqSwV9jokAOu4W9/datatables/S568bqfSmxXWdFhm"
+        },
+        "limitRows": true
+      },
+      "type": "n8n-nodes-base.evaluationTrigger",
+      "typeVersion": 4.7,
+      "position": [
+        -208,
+        -80
+      ],
+      "id": "445b7293-fd8c-47a2-a357-87869f77cdef",
+      "name": "When fetching a dataset row"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "S568bqfSmxXWdFhm",
+          "mode": "list",
+          "cachedResultName": "meetings_test",
+          "cachedResultUrl": "/projects/NUqSwV9jokAOu4W9/datatables/S568bqfSmxXWdFhm"
+        },
+        "outputs": {
+          "values": [
+            {
+              "outputName": "actual_summary",
+              "outputValue": "={{ $json.summary }}"
+            },
+            {
+              "outputName": "actual_decisions",
+              "outputValue": "={{ $json.decisions }}"
+            },
+            {
+              "outputName": "actual_actions_count",
+              "outputValue": "={{ $json.action_items.length }}"
+            },
+            {
+              "outputName": "actual_actions",
+              "outputValue": "={{ $json.action_items }}"
+            },
+            {
+              "outputName": "actual_opens_questions",
+              "outputValue": "={{ $json.open_questions }}"
+            },
+            {
+              "outputName": "actual_risks",
+              "outputValue": "={{ $json.risks_blockers }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.evaluation",
+      "typeVersion": 4.8,
+      "position": [
+        1248,
+        -144
+      ],
+      "id": "7f905998-197e-452e-ae15-53ea96f45e41",
+      "name": "Evaluation"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1488,
+        80
+      ],
+      "id": "5b2f19c2-3c57-49d3-97fd-b5a290c91caf",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "S568bqfSmxXWdFhm",
+          "mode": "list",
+          "cachedResultName": "meetings_test",
+          "cachedResultUrl": "/projects/NUqSwV9jokAOu4W9/datatables/S568bqfSmxXWdFhm"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "test_id": "={{ $json.action_items[0].id }}",
+            "title": "={{ $json.decisions[0].title }}",
+            "date": "={{new Date().toLocaleDateString()}}",
+            "attendees": "={{ $('Validate Input').item.json.attendees }}",
+            "transcript": "={{ $('Validate Input').item.json.transcript }}",
+            "expected_summary": "={{ $json.summary }}",
+            "expected_action_count": "={{ $json.decisions }}",
+            "expected_action_items": "={{ $json.action_items }}",
+            "expected_open_questions": "={{ $json.open_questions }}",
+            "expected_risks_blockers": "={{ $json.risks_blockers }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "test_id",
+              "displayName": "test_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "date",
+              "displayName": "date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "attendees",
+              "displayName": "attendees",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "transcript",
+              "displayName": "transcript",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "expected_summary",
+              "displayName": "expected_summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "expected_decisions",
+              "displayName": "expected_decisions",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "expected_action_count",
+              "displayName": "expected_action_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "expected_action_items",
+              "displayName": "expected_action_items",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "expected_open_questions",
+              "displayName": "expected_open_questions",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "expected_risks_blockers",
+              "displayName": "expected_risks_blockers",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "priority",
+              "displayName": "priority",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "actual_summary",
+              "displayName": "actual_summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "actual_decisions",
+              "displayName": "actual_decisions",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "actual_actions_count",
+              "displayName": "actual_actions_count",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "actual_actions",
+              "displayName": "actual_actions",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "actual_opens_questions",
+              "displayName": "actual_opens_questions",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "actual_risks",
+              "displayName": "actual_risks",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1280,
+        80
+      ],
+      "id": "0928d906-9a9d-4aff-bbcf-ac94f157b2b3",
+      "name": "Insert row"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Extract Meeting Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Extract Meeting Data",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Meeting Data": {
+      "main": [
+        [
+          {
+            "node": "Map",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map": {
+      "main": [
+        [
+          {
+            "node": "Normalize Action Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When fetching a dataset row": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Action Items": {
+      "main": [
+        [
+          {
+            "node": "Evaluation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Insert row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Operation, do nothing": {
+      "main": [
+        []
+      ]
+    },
+    "Insert row": {
+      "main": [
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "f038e94f-6935-425d-9f26-3c20f9d5ee24",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "558d88703fb65b2d0e44613bc35916258b0f0bf983c5d4730c00c424b77ca36a"
+  },
+  "id": "KYtgo34FlW9IP4IS",
+  "tags": []
+}
