@@ -111,8 +111,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1024,
-        -48
+        1008,
+        -144
       ],
       "id": "5ce68fcf-f53f-45ad-bdcc-2dacd39e862d",
       "name": "Normalize Action Items"
@@ -149,8 +149,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        816,
-        -48
+        800,
+        -144
       ],
       "id": "e9d61189-3d0b-4d9c-8a55-9181a3b420ef",
       "name": "Map"
@@ -223,17 +223,6 @@
       "name": "Evaluation"
     },
     {
-      "parameters": {},
-      "type": "n8n-nodes-base.noOp",
-      "typeVersion": 1,
-      "position": [
-        1488,
-        80
-      ],
-      "id": "5b2f19c2-3c57-49d3-97fd-b5a290c91caf",
-      "name": "No Operation, do nothing"
-    },
-    {
       "parameters": {
         "dataTableId": {
           "__rl": true,
@@ -251,10 +240,11 @@
             "attendees": "={{ $('Validate Input').item.json.attendees }}",
             "transcript": "={{ $('Validate Input').item.json.transcript }}",
             "expected_summary": "={{ $json.summary }}",
-            "expected_action_count": "={{ $json.decisions }}",
+            "expected_action_count": "={{ $json.action_items.length }}",
             "expected_action_items": "={{ $json.action_items }}",
             "expected_open_questions": "={{ $json.open_questions }}",
-            "expected_risks_blockers": "={{ $json.risks_blockers }}"
+            "expected_risks_blockers": "={{ $json.risks_blockers }}",
+            "expected_decisions": "={{ $json.decisions }}"
           },
           "matchingColumns": [],
           "schema": [
@@ -447,11 +437,74 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        1280,
-        80
+        1424,
+        256
       ],
       "id": "0928d906-9a9d-4aff-bbcf-ac94f157b2b3",
       "name": "Insert row"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "table": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2.2,
+      "position": [
+        1632,
+        256
+      ],
+      "id": "24f0b4f8-581a-4be8-9bd5-cf9494fe20b8",
+      "name": "Create a record"
+    },
+    {
+      "parameters": {
+        "content": "## Save the results \nYou can use Airtable to save the results then send the summary by Email or Slack for example",
+        "height": 304,
+        "width": 544,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1312,
+        128
+      ],
+      "typeVersion": 1,
+      "id": "73ac8ddb-cc24-46cd-83b4-835fc3ce73a1",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Extract and normalize data \nAnalyzes the text with AI, and extracts the key decisions, action items, owners, due dates, blockers, and next steps",
+        "height": 480,
+        "width": 784
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        432,
+        -256
+      ],
+      "typeVersion": 1,
+      "id": "4879b34c-3b89-4e5e-b3f6-19d86fe1ac7a",
+      "name": "Sticky Note1"
     }
   ],
   "pinData": {},
@@ -556,20 +609,20 @@
         ]
       ]
     },
-    "No Operation, do nothing": {
-      "main": [
-        []
-      ]
-    },
     "Insert row": {
       "main": [
         [
           {
-            "node": "No Operation, do nothing",
+            "node": "Create a record",
             "type": "main",
             "index": 0
           }
         ]
+      ]
+    },
+    "Create a record": {
+      "main": [
+        []
       ]
     }
   },
@@ -579,7 +632,7 @@
     "binaryMode": "separate",
     "availableInMCP": true
   },
-  "versionId": "f038e94f-6935-425d-9f26-3c20f9d5ee24",
+  "versionId": "3f9c8030-3712-48d5-af74-192da32964f0",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "558d88703fb65b2d0e44613bc35916258b0f0bf983c5d4730c00c424b77ca36a"
