@@ -127,7 +127,7 @@
       "typeVersion": 1.5,
       "position": [
         528,
-        256
+        320
       ],
       "id": "aa42889a-371a-443b-a6d5-641e2bf09529",
       "name": "Respond to Webhook"
@@ -169,8 +169,8 @@
       "type": "n8n-nodes-base.evaluationTrigger",
       "typeVersion": 4.7,
       "position": [
-        -208,
-        -80
+        -224,
+        -288
       ],
       "id": "445b7293-fd8c-47a2-a357-87869f77cdef",
       "name": "When fetching a dataset row"
@@ -441,7 +441,8 @@
         256
       ],
       "id": "0928d906-9a9d-4aff-bbcf-ac94f157b2b3",
-      "name": "Insert row"
+      "name": "Insert row",
+      "disabled": true
     },
     {
       "parameters": {
@@ -505,6 +506,21 @@
       "typeVersion": 1,
       "id": "4879b34c-3b89-4e5e-b3f6-19d86fe1ac7a",
       "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Form or Webhook\nSend at least a title and the transcription\n\n \n(title, date, attendees, transcript)",
+        "height": 272,
+        "width": 480
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -288,
+        0
+      ],
+      "typeVersion": 1,
+      "id": "fca32cef-9b93-4592-94e8-d2ce3722fa5a",
+      "name": "Sticky Note2"
     }
   ],
   "pinData": {},
@@ -632,7 +648,7 @@
     "binaryMode": "separate",
     "availableInMCP": true
   },
-  "versionId": "3f9c8030-3712-48d5-af74-192da32964f0",
+  "versionId": "e613d061-7347-4f46-af54-012fa4b76458",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "558d88703fb65b2d0e44613bc35916258b0f0bf983c5d4730c00c424b77ca36a"
